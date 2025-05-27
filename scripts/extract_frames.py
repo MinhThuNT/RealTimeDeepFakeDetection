@@ -38,24 +38,13 @@ def extract_frames(video_path, output_dir, frame_rate=1, expected_frames=None):
 def process_videos(video_dir, output_base_dir, label, fake_type=None, metadata_csv=None):
     df_meta = pd.read_csv(metadata_csv) if metadata_csv else None
     video_list = glob.glob(os.path.join(video_dir, "*.mp4"))
-    print(f"Found {len(video_list)} videos in {video_dir}: {video_list}")
     
-    if not video_list:
-        print(f"No videos found in {video_dir}, skipping...")
-        return
-    
+    # Sắp xếp theo kích thước file nếu có metadata
     if df_meta is not None:
         video_sizes = []
         for video_path in video_list:
-            video_name = os.path.basename(video_path).split('.')[0]
-            if label == "fake" and fake_type:
-                output_dir = os.path.join(output_base_dir, label, fake_type, video_name)
-            else:
-                output_dir = os.path.join(output_base_dir, label, video_name)
-            # Bỏ qua nếu thư mục đầu ra đã tồn tại và có khung hình
-            if os.path.exists(output_dir) and len(os.listdir(output_dir)) > 0:
-                print(f"Skipping already processed video: {video_path}")
-                continue
+            video_name = os.path.basename(video_path)
+            # Khớp với File Path trong FF++_Metadata.csv
             file_path = f"{os.path.basename(video_dir)}/{video_name}" if label == "fake" else f"original/{video_name}"
             row = df_meta[df_meta["File Path"] == file_path]
             if not row.empty:
@@ -66,11 +55,11 @@ def process_videos(video_dir, output_base_dir, label, fake_type=None, metadata_c
     
     for video_path in video_list:
         video_name = os.path.basename(video_path).split('.')[0]
+        # Đảm bảo giữ cấu trúc thư mục con cho fake
         if label == "fake" and fake_type:
             output_dir = os.path.join(output_base_dir, label, fake_type, video_name)
         else:
             output_dir = os.path.join(output_base_dir, label, video_name)
-        print(f"Processing video: {video_path} -> Output: {output_dir}")
         expected_frames = None
         if df_meta is not None:
             file_path = f"{os.path.basename(video_dir)}/{video_name}.mp4" if label == "fake" else f"original/{video_name}.mp4"
@@ -84,15 +73,20 @@ if __name__ == "__main__":
     output_base_dir = "data/frames"
     csv_dir = "data/raw_videos/csv"
     
+    # Đọc FF++_Metadata.csv cho cả real và fake
     metadata_csv = f"{csv_dir}/FF++_Metadata.csv"
     if not os.path.exists(metadata_csv):
         print(f"Error: Metadata file {metadata_csv} not found")
         exit(1)
     
+    # Xử lý video thật
     real_dir = f"{dataset_path}/original"
     if os.path.exists(real_dir):
         process_videos(real_dir, output_base_dir, "real", metadata_csv=metadata_csv)
+    else:
+        print(f"Warning: Directory {real_dir} not found")
     
+    # Xử lý video giả
     video_dirs = ["Deepfakes", "Face2Face", "FaceShifter", "FaceSwap", "NeuralTextures", "DeepFakeDetection"]
     for dir_name in video_dirs:
         fake_dir = f"{dataset_path}/{dir_name}"
